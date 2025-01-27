@@ -37,7 +37,6 @@ class AioAPI:
             pattern = re.sub(r'\{[^}]*\}', r'([^\/]+)', endpoint.path)
 
             match = re.match(f"^{pattern}$", path)
-            print(endpoint.method == self.method, self.method, endpoint.method)
             if endpoint.method == self.method and match:
                 groups = match.groups()
                 if groups:
