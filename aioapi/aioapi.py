@@ -1,7 +1,7 @@
 import asyncio
 import colorama
 
-from .responses import HTMLResponse, JSONResponse, PlainTextResponse
+from .responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from .requests import Request
 
 colorama.init(True)
@@ -21,6 +21,15 @@ class AioAPI:
         self.port = port
         self.endpoints: list[EndPoint] = [] # Хранение доступных эндпоинтов
 
+    async def write(self, writer, response: Response, data):
+        if response.status_code == 200:
+            print(colorama.Fore.GREEN + "200")
+        else:
+            print(colorama.Fore.RED + str(response.status_code))
+        writer.write(response.get_bytes() + data)
+        await writer.drain()
+        writer.close()
+
     def get(self, path, response_class=PlainTextResponse):
         """Создание нового эндпоинта с методом GET"""
         def inner(func):
@@ -28,50 +37,45 @@ class AioAPI:
             return None
         return inner
 
+    def post(self, path, response_class=PlainTextResponse):
+        """Создание нового эндпоинта с методом POST"""
+        def inner(func):
+            self.endpoints.append(EndPoint("GET", path, func, response_class))
+            return None
+        return inner
+
+    def put(self, path, response_class=PlainTextResponse):
+        """Создание нового эндпоинта с методом PUT"""
+        def inner(func):
+            self.endpoints.append(EndPoint("GET", path, func, response_class))
+            return None
+        return inner
+
+    def delete(self, path, response_class=PlainTextResponse):
+        """Создание нового эндпоинта с методом DELETE"""
+        def inner(func):
+            self.endpoints.append(EndPoint("GET", path, func, response_class))
+            return None
+        return inner
+
     async def return_404(self, writer):
         """Возвращение 404 если эндпоинт не найден"""
-        await self.return_json(writer, await JSONResponse({"detail": "Not Found"}).get()) # Возвращение 404 если страница не найденв
+        await self.return_json(writer, await JSONResponse({"detail": "Not Found"}).get(), 404) # Возвращение 404 если страница не найденв
 
-    async def return_html(self, writer, contents):
+    async def return_html(self, writer, contents, status_code=200):
         """Функция возвращения text/html"""
-        response = (
-            b"HTTP/1.1 404 NOT FOUND\r\n"
-            b"Content-Type: text/html; charset=utf-8\r\n"
-            b"Content-Length: %b\r\n"
-            b"\r\n"
-            % str(len(contents)).encode()
-        )
-        writer.write(response + contents)
-        await writer.drain()
-        writer.close()
+        response = Response(contents, status_code)
+        await self.write(writer, response, contents)
 
-    async def return_json(self, writer, contents):
+    async def return_json(self, writer, contents, status_code=200):
         """Функция возвращения json"""
-        response = (
-            b"HTTP/1.1 200 OK\r\n"
-            b"Content-Type: application/json; charset=utf-8\r\n"
-            b"Content-Length: %b\r\n"
-            b"\r\n"
-            % str(len(contents)).encode()
-        )
+        response = Response(contents, status_code, "text/json")
+        await self.write(writer, response, contents)
 
-        writer.write(response + contents)
-        await writer.drain()
-        writer.close()
-
-    async def return_text(self, writer, contents):
+    async def return_text(self, writer, contents, status_code=200):
         """Функция возвращения text/plain"""
-        response = (
-            b'HTTP/1.1 200 OK\r\n'
-            b'Content-Type: text/plain; charset=utf-8\r\n'
-            b'Content-Length: %b\r\n'
-            b'\r\n'
-            % str(len(contents)).encode()
-        )
-
-        writer.write(response + contents)
-        await writer.drain()
-        writer.close()
+        response = Response(contents, status_code, "text/plain")
+        await self.write(writer, response, contents)
 
     async def _handle_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         """Функция-хэндлер для запросов"""
@@ -79,7 +83,7 @@ class AioAPI:
         method, path, type = request.decode().strip().split() or ("", "", "")
         if (method, path, type) == ("", "", ""): # хз, какая то ошибка, это пока заглушка (надеюсь временная)
             return
-        print(colorama.Fore.GREEN + f"{method} on {path} | {type}")
+        print(colorama.Fore.GREEN + f"{method} on {path} | {type}", end=f"{colorama.Fore.GREEN} - ")
 
         for endpoint in self.endpoints:
             if endpoint.path == path:
