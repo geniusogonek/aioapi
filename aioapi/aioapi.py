@@ -1,36 +1,10 @@
 import asyncio
-import json
-import aiofiles
 import colorama
 
+from .responses import HTMLResponse, JSONResponse, PlainTextResponse
+from .requests import Request
 
 colorama.init(True)
-
-
-class HTMLResponse:
-    def __init__(self, name):
-        self.name = name
-
-    async def get(self):
-        async with aiofiles.open(self.name, mode="rb") as file:
-            contents = await file.read()
-        return contents
-
-
-class JSONResponse:
-    def __init__(self, data):
-        self.data = data
-
-    async def get(self):
-        return json.dumps(self.data).encode()
-
-
-class PlainTextResponse:
-    def __init__(self, data):
-        self.data = data
-
-    async def get(self):
-        return self.data.encode()
 
 
 class EndPoint:
@@ -39,11 +13,6 @@ class EndPoint:
         self.path = path
         self.endpoint_func = endpoint_func
         self.response_class = response_class
-
-
-class Request:
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs # TODO (СКОРО БУДЕТ)
 
 
 class AioAPI:
@@ -149,40 +118,3 @@ class AioAPI:
 
         async with server:
             await server.serve_forever()
-
-
-app = AioAPI(host="127.0.0.1", port=8080)
-
-
-@app.get("/html")
-async def html():
-    """ТУТ МОЖНО ВЕРНУТЬ HTML КАК В ФАСТАПИ"""
-    return HTMLResponse("index.html")
-
-
-@app.get("/json")
-async def json_():
-    """МОЖНО DICT, TUPLE, LIST ВОЗВРАЩАТЬ И ОН БУДЕТ JSON, ПРЯМО КАК В ФАСТПАПИ"""
-    return {"status": "ok", "users": ({"username": "test"}, {"username": "test2"})}
-    # OR return JSONResponse({"status": "ok""})
-
-
-@app.get("/str")
-async def string():
-    """МОЖНО ВОЗВРАЩАТЬ СТРОКИ И ОНО ВЕРНЕТСЯ КЛИЕНТУ (КАК В ФАСТАПИ)"""
-    return "its the best web framework by genius dev"
-    # OR return PlainTextResponse("its the best web framework by genius dev")
-
-
-@app.get("/request")
-async def request_(request: Request):
-    """ЕСТЬ РЕКВЕСТЫ!!! (КАК В ФАСТАПИ)"""
-    print(request)
-    return {"status": "ok", "request": request.kwargs}
-
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(app.run())
-    except KeyboardInterrupt:
-        pass
