@@ -34,6 +34,16 @@ async def request_(request: Request):
     return {"status": "ok", "request": request.user_agent}
 
 
+@app.get("/test/{test}")
+async def test_params(test: int):
+    return test
+
+
+@app.get("/params")
+async def test_params_(test: int):
+    return type(test)
+
+
 async def main():
     try:
         await app.run()
